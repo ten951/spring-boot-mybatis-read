@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: mybatis-read
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/trade_center?useUnicode=true&characterEncoding=utf-8&allowMultiQueries=true&zeroDateTimeBehavior=convertToNull&useSSL=false&logger=com.mysql.jdbc.log.Slf4JLogger
+    username: root
+    password: 12345678
+
+
+mybatis:
+  typeAliasesPackage: com.ten951.boot.mybatis.read.entity
+  # mapper 的xml文件扫描路径
+  mapper-locations: classpath:mapper/**/*.xml
+  # 扫描通用的 typeHandlers 的包
+  #type-handlers-package: com.yixin.order.config
+#pagehelper分页插件配置
+pagehelper:
+  helperDialect: mysql
+  reasonable: true
+  supportMethodsArguments: true
+  params: pageNum=page;pageSize=size;count=countSql;
