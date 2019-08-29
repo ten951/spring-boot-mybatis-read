@@ -1,7 +1,9 @@
 # spring-boot-mybatis-read
 
 ## 自动加载
+
 ![20190823100135.png](https://ten951-img.oss-cn-shanghai.aliyuncs.com/20190823100135.png)
+
 在spring.factories文件中:
 ```yaml
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
