@@ -9,8 +9,8 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
  * @author yongtianwang
  */
 @SpringBootApplication
-@EnableWebMvc
 @MapperScan(basePackages = "com.ten951.boot.mybatis.read.mapper")
+@EnableWebMvc
 public class SpringBootMybatisReadApplication {
 
     public static void main(String[] args) {
