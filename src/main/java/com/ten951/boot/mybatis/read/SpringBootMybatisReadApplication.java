@@ -12,7 +12,6 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
  */
 @SpringBootApplication
 @MapperScan(basePackages = "com.ten951.boot.mybatis.read.mapper")
-@EnableWebMvc
 @EnableTransactionManagement(mode = AdviceMode.PROXY)
 public class SpringBootMybatisReadApplication {
 

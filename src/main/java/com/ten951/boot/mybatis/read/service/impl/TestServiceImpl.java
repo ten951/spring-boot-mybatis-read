@@ -1,5 +1,6 @@
 package com.ten951.boot.mybatis.read.service.impl;
 
+import com.ten951.boot.mybatis.read.entity.RepeatConfig;
 import com.ten951.boot.mybatis.read.mapper.RepeatConfigMapper;
 import com.ten951.boot.mybatis.read.service.ITestService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ public class TestServiceImpl implements ITestService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void insert(Long i) {
-        configMapper.selectByPrimaryKey(i);
+        RepeatConfig config = configMapper.selectByPrimaryKey(i);
+
     }
 }

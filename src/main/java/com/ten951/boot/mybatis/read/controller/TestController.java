@@ -21,7 +21,7 @@ public class TestController {
 
 
     @RequestMapping(method = GET, path = "/get")
-    public void tet() {
-        testService.insert(1L);
+    public void tet(Long orderId) {
+        testService.insert(orderId);
     }
 }

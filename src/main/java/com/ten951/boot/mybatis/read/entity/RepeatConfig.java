@@ -2,7 +2,6 @@ package com.ten951.boot.mybatis.read.entity;
 
 import lombok.Data;
 
-import java.io.Serializable;
 import java.time.Instant;
 
 /**
@@ -12,7 +11,7 @@ import java.time.Instant;
  * 2018-10-08
  */
 @Data
-public class RepeatConfig implements Serializable {
+public class RepeatConfig implements Cloneable {
     /**
      *
      */
@@ -77,4 +76,9 @@ public class RepeatConfig implements Serializable {
      * 检测单类型(value)
      */
     private String repeatTypeName;
+
+    @Override
+    public RepeatConfig clone() throws CloneNotSupportedException {
+        return (RepeatConfig) super.clone();
+    }
 }
