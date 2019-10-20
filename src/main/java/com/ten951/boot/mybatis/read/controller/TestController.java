@@ -126,7 +126,7 @@ public class TestController implements Cloneable {
 
 
     @RequestMapping(method = GET, path = "/get")
-    public void tet(Long orderId) {
-        testService.insert(orderId);
+    public Object tet(Long orderId) {
+       return testService.insert(orderId);
     }
 }

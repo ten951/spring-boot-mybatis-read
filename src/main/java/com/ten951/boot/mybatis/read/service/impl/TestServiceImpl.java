@@ -23,9 +23,10 @@ public class TestServiceImpl implements ITestService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void insert(Long i) {
+    public RepeatConfig insert(Long i) {
         RepeatConfig config = this.findById(i);
         log.info("{}", config);
+        return config;
 
     }
 
