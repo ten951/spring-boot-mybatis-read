@@ -19,6 +19,7 @@ org.mybatis.spring.boot.autoconfigure.MybatisLanguageDriverAutoConfiguration,\
 org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
 ```
 这些类是在项目启动时. spring的注解驱动帮我们自动加载的.
+
 ### MybatisAutoConfiguration(Mybatis自动加载类)
 ```java
 @org.springframework.context.annotation.Configuration
@@ -28,12 +29,17 @@ org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
 @ConditionalOnSingleCandidate(DataSource.class)
 //开启或者读取mybatis开头的配置
 @EnableConfigurationProperties(MybatisProperties.class)
+//在DataSourceAutoConfiguration配置和MybatisLanguageDriverAutoConfiguration类加载完成之后 加载MybatisAutoConfiguration类
 @AutoConfigureAfter({ DataSourceAutoConfiguration.class, MybatisLanguageDriverAutoConfiguration.class })
 public class MybatisAutoConfiguration implements InitializingBean {
 }
 ```
+<!-- more -->
 这个自动装配类. 在我自己看来干了这么几件事:
 #### @EnableConfigurationProperties(MybatisProperties.class) 读取mybatis开头的配置项
+
+启用yml的配置项. 用户可以自由配置
+
 #### SqlSessionFactory的初始化
 ```java
 public class MybatisAutoConfiguration implements InitializingBean {
@@ -96,10 +102,15 @@ public class MybatisAutoConfiguration implements InitializingBean {
   }
 }
 ```
+主要点是设置mybatis-config.xml和mapper.xml的位置 并进行解析
+
 SqlSessionFactoryBean->getObject()->afterPropertiesSet()->buildSqlSessionFactory()->new DefaultSqlSessionFactory(config);
+
 SqlSessionFactoryBean->buildSqlSessionFactory()方法是构建SqlSessionFactory的核心方法.
+
 这个方法主要干两件事情:
-1. XMLConfigBuilder构建和解析(parse)
+
+1. XMLConfigBuilder构建和解析(parse)  这个就详细看了
 2. XMLMapperBuilder构建和解析(parse)
 
 ##### XMLConfigBuilder构建和解析(parse方法)
@@ -140,9 +151,12 @@ public class XMLConfigBuilder extends BaseBuilder {
 }
 ```
 这些元素都很熟悉. 背后是在设置Configuration类.TypeAliasRegistry类和TypeHandlerRegistry类
+
 ##### XMLMapperBuilder(Mapper文件解析器)
+
 ```java
-public class XMLMapperBuilder extends BaseBuilder {
+
+public class XMLMapperBuilder {
 
   private final XPathParser parser;
 //解析mapper的协助类
@@ -150,9 +164,9 @@ public class XMLMapperBuilder extends BaseBuilder {
   private final Map<String, XNode> sqlFragments;
   private final String resource;
 
-public void parse() {
+    public void parse() {
     if (!configuration.isResourceLoaded(resource)) {
-//解析mapper.xml的内容
+    //解析mapper.xml的内容
       configurationElement(parser.evalNode("/mapper"));
       configuration.addLoadedResource(resource);
 //通过mapper.xml的namespace属性.拿到mapper接口. 并通过Configuration类提供的MapperRegistry注册器将这个mapper接口注册knownMappers集合中,
@@ -179,6 +193,7 @@ public void parse() {
     //补偿机制 select|insert|update|delete
     parsePendingStatements();
   }
+
 private void configurationElement(XNode context) {
     try {
       //获取命名空间
@@ -203,9 +218,157 @@ private void configurationElement(XNode context) {
       throw new BuilderException("Error parsing Mapper XML. The XML location is '" + resource + "'. Cause: " + e, e);
     }
   }
+
+// 可以理解文解析Mapper接口并完成注册. 是通过mapper.xml中的namespace属性再结合反射生成Mapper.Class
+private void bindMapperForNamespace() {
+    // 获取mapper.xml的namespace属性
+    String namespace = builderAssistant.getCurrentNamespace();
+    if (namespace != null) {
+      Class<?> boundType = null;
+      try {
+          //通过反射生成Class<Mapper>
+        boundType = Resources.classForName(namespace);
+      } catch (ClassNotFoundException e) {
+        //ignore, bound type is not required
+      }
+      if (boundType != null) {
+          //校验. Class<Mapper>没被接续过.
+        if (!configuration.hasMapper(boundType)) {
+          // Spring may not know the real resource name so we set a flag
+          // to prevent loading again this resource from the mapper interface
+          // look at MapperAnnotationBuilder#loadXmlResource
+          configuration.addLoadedResource("namespace:" + namespace);
+          //继续Mapper接口并注册
+          configuration.addMapper(boundType);
+        }
+      }
+    }
+  }
+}
+   public <T> void addMapper(Class<T> type) {
+    mapperRegistry.addMapper(type);
+    }
+
+    //MapperRegistry
+    public <T> void addMapper(Class<T> type) {
+        //必须是接口
+    if (type.isInterface()) {
+        //已经注册过 抛异常
+      if (hasMapper(type)) {
+        throw new BindingException("Type " + type + " is already known to the MapperRegistry.");
+      }
+      //防止中途中断
+      boolean loadCompleted = false;
+      try {
+        knownMappers.put(type, new MapperProxyFactory<>(type));
+        // It's important that the type is added before the parser is run
+        // otherwise the binding may automatically be attempted by the
+        // mapper parser. If the type is already known, it won't try.
+        //解析Mapper接口上的注解. 
+        MapperAnnotationBuilder parser = new MapperAnnotationBuilder(config, type);
+        parser.parse();
+        loadCompleted = true;
+      } finally {
+        if (!loadCompleted) {
+          knownMappers.remove(type);
+        }
+      }
+    }
+  }
+
+```
+
+解析sql的循序是parameterMap  resultMap  sql片段  select|insert|update|delete.  
+
+
+##### MapperProxyFactory代理工厂
+
+```java
+
+public class MapperProxyFactory<T> {
+//被代理的接口
+  private final Class<T> mapperInterface;
+  //缓存. key是方法. 
+  private final Map<Method, MapperMethod> methodCache = new ConcurrentHashMap<>();
+
+  public MapperProxyFactory(Class<T> mapperInterface) {
+    this.mapperInterface = mapperInterface;
+  }
+
+  public Class<T> getMapperInterface() {
+    return mapperInterface;
+  }
+
+  public Map<Method, MapperMethod> getMethodCache() {
+    return methodCache;
+  }
+
+  @SuppressWarnings("unchecked")
+  protected T newInstance(MapperProxy<T> mapperProxy) {
+    return (T) Proxy.newProxyInstance(mapperInterface.getClassLoader(), new Class[] { mapperInterface }, mapperProxy);
+  }
+
+  public T newInstance(SqlSession sqlSession) {
+    // methodCache 缓存. 
+    final MapperProxy<T> mapperProxy = new MapperProxy<>(sqlSession, mapperInterface, methodCache);
+    return newInstance(mapperProxy);
+  }
+
+}
+
+public class MapperProxy<T> implements InvocationHandler, Serializable {
+
+  private static final long serialVersionUID = -6424540398559729838L;
+  private final SqlSession sqlSession;
+  private final Class<T> mapperInterface;
+  private final Map<Method, MapperMethod> methodCache;
+
+  public MapperProxy(SqlSession sqlSession, Class<T> mapperInterface, Map<Method, MapperMethod> methodCache) {
+    this.sqlSession = sqlSession;
+    this.mapperInterface = mapperInterface;
+    this.methodCache = methodCache;
+  }
+
+  @Override
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    try {
+      if (Object.class.equals(method.getDeclaringClass())) {
+        return method.invoke(this, args);
+      } else if (method.isDefault()) {
+        return invokeDefaultMethod(proxy, method, args);
+      }
+    } catch (Throwable t) {
+      throw ExceptionUtil.unwrapThrowable(t);
+    }
+    final MapperMethod mapperMethod = cachedMapperMethod(method);
+    return mapperMethod.execute(sqlSession, args);
+  }
+
+  private MapperMethod cachedMapperMethod(Method method) {
+    return methodCache.computeIfAbsent(method, k -> new MapperMethod(mapperInterface, method, sqlSession.getConfiguration()));
+  }
+
+  private Object invokeDefaultMethod(Object proxy, Method method, Object[] args)
+      throws Throwable {
+    final Constructor<MethodHandles.Lookup> constructor = MethodHandles.Lookup.class
+        .getDeclaredConstructor(Class.class, int.class);
+    if (!constructor.isAccessible()) {
+      constructor.setAccessible(true);
+    }
+    final Class<?> declaringClass = method.getDeclaringClass();
+    return constructor
+        .newInstance(declaringClass,
+            MethodHandles.Lookup.PRIVATE | MethodHandles.Lookup.PROTECTED
+                | MethodHandles.Lookup.PACKAGE | MethodHandles.Lookup.PUBLIC)
+        .unreflectSpecial(method, declaringClass).bindTo(proxy).invokeWithArguments(args);
+  }
 }
 
 ```
+
+使用的是JDK的代理. JDK的代理必须实现一个接口 InvocationHandler. 所以找到了MapperProxy类. 
+
+
 SqlSessionFactoryBean.getObject(); 执行的时候,mybatis的config解析完成, mapper.xml解析完成, mapper接口的解析, mapper接口代理工厂的设置.都已经完成了
 
 #### AutoConfiguredMapperScannerRegistrar
@@ -216,7 +379,10 @@ SqlSessionFactoryBean.getObject(); 执行的时候,mybatis的config解析完成,
 
 >builder.addPropertyValue("annotationClass", Mapper.class);  扫描了标记Mapper注解(这个注解是没有@Component元注解的. 也就是spring在自动装载阶段不管的.只能自己mybatis自己来)
 >registry.registerBeanDefinition(MapperScannerConfigurer.class.getName(), builder.getBeanDefinition()); MapperScannerConfigurer Mapper扫描器
+
+
 #### MapperScannerConfigurer
+
 这个类实现了BeanDefinitionRegistryPostProcessor接口. 所以在spring ioc启动的时候会执行postProcessBeanDefinitionRegistry()方法:
 ```java
 public class MapperScannerConfigurer 
@@ -250,6 +416,7 @@ public class MapperScannerConfigurer
 ClassPathMapperScanner#scan() 方法就是扫描@MapperScan(basePackages = "com.ten951.boot.mybatis.read.mapper")这里指定的包下的mapper接口的. 并注册.
 
 #### SqlSessionTemplate初始化 
+
 初始化目前发现2中方式. 
 第一种是在自动装配阶段通过@Bean加载的. 这个是先执行的 因为本质是BeanFactoryPostProcessor
 第二种是BeanPostProcessor执行的时候,AutowiredAnnotationBeanPostProcessor注入的时候创建依赖Bean,在populateBean()的时候. 填充属性new的.
@@ -272,6 +439,8 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
 }
 
 ```
+
+这里SqlSession的JDK代理. 
 
 
 ### Mapper执行的时候
@@ -377,15 +546,12 @@ private class SqlSessionInterceptor implements InvocationHandler {
     }
   }
 
-```
-```textmate
-
   public static SqlSession getSqlSession(SqlSessionFactory sessionFactory, ExecutorType executorType,
       PersistenceExceptionTranslator exceptionTranslator) {
 
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
     notNull(executorType, NO_EXECUTOR_TYPE_SPECIFIED);
-
+    //在当前线程的ThreadLocal中获得SqlSession
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
 
     SqlSession session = sessionHolder(executorType, holder);
@@ -437,7 +603,8 @@ private class SqlSessionInterceptor implements InvocationHandler {
 
 ```
 最终在DefaultSqlSessionFactory类中 找打了下面代码, 完成了执行器 事务管理器 和 sqlSession的绑定.
-```text
+
+```java
   private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
     Transaction tx = null;
     try {
@@ -459,5 +626,3 @@ private class SqlSessionInterceptor implements InvocationHandler {
   }
 ```
 
-
-[事务.md]: 事务.md

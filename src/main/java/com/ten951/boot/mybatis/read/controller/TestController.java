@@ -1,22 +1,17 @@
 package com.ten951.boot.mybatis.read.controller;
 
-import com.google.common.base.Objects;
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
-import com.ten951.boot.mybatis.read.entity.RepeatConfig;
-import com.ten951.boot.mybatis.read.mapper.RepeatConfigMapper;
 import com.ten951.boot.mybatis.read.service.ITestService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executors;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
@@ -44,7 +39,6 @@ public class TestController implements Cloneable {
     public TestController() {
         System.out.println("ssssssss");
     }
-
 
     public Integer getI() {
         return i;
