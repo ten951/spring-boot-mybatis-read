@@ -8,8 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-
 /**
  * @author Darcy
  * @date 2019-08-29 12:51
@@ -24,6 +22,11 @@ public class TestServiceImpl implements ITestService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RepeatConfig insert(Long i) {
+        try {
+            Thread.sleep(6000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         RepeatConfig config = this.findById(i);
         log.info("{}", config);
         return config;
@@ -32,12 +35,7 @@ public class TestServiceImpl implements ITestService {
 
 
     public RepeatConfig findById(Long i) {
-        try {
-            Thread.sleep(100);
-            return configMapper.selectByPrimaryKey(i);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return null;
+        return configMapper.selectByPrimaryKey(i);
+
     }
 }

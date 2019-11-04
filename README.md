@@ -415,6 +415,14 @@ public class MapperScannerConfigurer
 ```
 ClassPathMapperScanner#scan() 方法就是扫描@MapperScan(basePackages = "com.ten951.boot.mybatis.read.mapper")这里指定的包下的mapper接口的. 并注册.
 
+扫描的mapper接口的BeanDefinition.的BeanClass属性设置的是MapperFactoryBean. 这是FactoryBean. 在getBean阶段会执行getObject()方法. 这是通过mapperRegistry获取
+MapperProxyFactory mapper代理工厂. 这是调用mapperProxyFactory.newInstance(sqlSession).创建了mapper代理MapperProxy. 这里的sqlSession就是上面传入的sqlSessionTemplate
+
+这个template对本身是Session的实现类. 又创建了SQLSession的代理类. 
+
+
+
+
 #### SqlSessionTemplate初始化 
 
 初始化目前发现2中方式. 
