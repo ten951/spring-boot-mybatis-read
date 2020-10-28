@@ -157,7 +157,7 @@ public class XMLConfigBuilder extends BaseBuilder {
 ```java
 
 public class XMLMapperBuilder {
-
+XMLMapperBuilder
   private final XPathParser parser;
 //解析mapper的协助类
   private final MapperBuilderAssistant builderAssistant;

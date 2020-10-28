@@ -402,7 +402,7 @@ DefaultAopProxyFactory类和ObjenesisCglibAopProxy类. 属于工厂方法模式.
 
 
 #### CglibAopProxy类是ObjenesisCglibAopProxy的父类
-
+validateClassIfNecessary
 ```java
 @Override
 	public Object getProxy(@Nullable ClassLoader classLoader) {
